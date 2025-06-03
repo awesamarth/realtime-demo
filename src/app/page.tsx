@@ -24,6 +24,11 @@ export default function TestRealtimeEndpoints() {
   const [result, setResult] = useState<string>('')
   const [error, setError] = useState<string>('')
   const [isExecuting, setIsExecuting] = useState(false)
+  const [transactionHistory, setTransactionHistory] = useState<Array<{
+    network: string
+    hash: string
+    time: number
+  }>>([])
 
   // Cache clients to avoid recreation
   const clientCache = useRef<Record<string, any>>({})
@@ -207,12 +212,11 @@ export default function TestRealtimeEndpoints() {
         // Apply conservative multipliers for testnets
         switch (networkId) {
           case 'megaeth':
-            // Just hardcode exactly like the working test
-            gasPrice = networkGasPrice  // 20 gwei
+            gasPrice = networkGasPrice
             gasLimit = 100000n
             break
           case 'rise':
-            gasPrice = networkGasPrice / 10n 
+            gasPrice = networkGasPrice / 10n
             gasLimit = 50000n
             break
           case 'abstract':
@@ -316,10 +320,10 @@ export default function TestRealtimeEndpoints() {
         params: [signedTx]
       })
 
-      
+
       const endTime = performance.now()
-      console.log("result: ", result)
       const timeTaken = Math.round(endTime - startTime)
+      console.log("result: ", result)
 
 
       setPreSignedPool(prev => {
@@ -345,6 +349,14 @@ export default function TestRealtimeEndpoints() {
       })
 
       setResult(`Hash: ${result?.transactionHash}\nTime: ${timeTaken}ms`)
+      setTransactionHistory(prev => [
+        {
+          network: selectedNetwork.name,
+          hash: result?.transactionHash || 'N/A',
+          time: timeTaken
+        },
+        ...prev.slice(0, 9) // Keep only last 10
+      ])
 
     } catch (err: any) {
       console.error('❌ Error executing:', err)
@@ -352,6 +364,10 @@ export default function TestRealtimeEndpoints() {
     } finally {
       setIsExecuting(false)
     }
+  }
+
+  const clearHistory = () => {
+    setTransactionHistory([])
   }
 
   const handleNetworkChange = (network: Network) => {
@@ -417,8 +433,6 @@ export default function TestRealtimeEndpoints() {
         </div>
       )}
 
-
-
       {/* Execute Button */}
       <div className="mb-8">
         <button
@@ -473,26 +487,139 @@ export default function TestRealtimeEndpoints() {
             })}
           </div>
         </div>
-      )}
+      )
+      }
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-100 dark:bg-red-900 rounded-lg max-w-2xl">
-          <h3 className="font-semibold text-red-800 dark:text-red-200 mb-2">
-            ❌ Error
-          </h3>
-          <p className="text-red-700 dark:text-red-300 break-all">
-            {error}
-          </p>
+      {
+        error && (
+          <div className="mb-6 p-4 bg-red-100 dark:bg-red-900 rounded-lg max-w-2xl">
+            <h3 className="font-semibold text-red-800 dark:text-red-200 mb-2">
+              ❌ Error
+            </h3>
+            <p className="text-red-700 dark:text-red-300 break-all">
+              {error}
+            </p>
+          </div>
+        )
+      }
+
+      {/* Floating scroll indicator */}
+      {transactionHistory.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <div className="bg-blue-600 text-white rounded-full p-3 shadow-lg hover:bg-blue-700 transition-all duration-200 cursor-pointer animate-pulse"
+            onClick={() => {
+              document.querySelector('.transaction-history-table')?.scrollIntoView({
+                behavior: 'smooth'
+              })
+            }}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {transactionHistory.length} transaction{transactionHistory.length>1?"s":""}
+              </span>
+              <div className="text-lg">↓</div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Network Info */}
-      {selectedNetwork.id !== 'select' && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
-          <p>Contract: {CONTRACT_ADDRESSES[selectedNetwork.id as keyof typeof CONTRACT_ADDRESSES]}</p>
-          <p>Chain: {selectedNetwork.name} ({selectedNetwork.chainId})</p>
+      {
+        selectedNetwork.id !== 'select' && (
+          <div className="mb-8 text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
+            <p>Contract: {CONTRACT_ADDRESSES[selectedNetwork.id as keyof typeof CONTRACT_ADDRESSES]}</p>
+            <p>Chain: {selectedNetwork.name} ({selectedNetwork.chainId})</p>
+          </div>
+        )
+      }
+
+      {/* Transaction History Table */}
+      {transactionHistory.length > 0 && (
+        <div className="w-full max-w-4xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+              Last {transactionHistory.length>1?transactionHistory.length:""} Transaction{transactionHistory.length>1?"s":""}
+            </h3>
+            <button
+              onClick={clearHistory}
+              className="text-sm text-gray-500 hover:text-red-500 transition-colors"
+            >
+              Clear History
+            </button>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg">
+            <table className="w-full transaction-history-table">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Network
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Hash
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Time
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {transactionHistory.map((tx, index) => {
+                  const getExplorerUrl = (networkName: string, hash: string) => {
+                    const networkId = networkName.toLowerCase().replace(' ', '')
+                    switch (networkId) {
+                      case 'abstract': return `https://explorer.testnet.abs.xyz/tx/${hash}`
+                      case 'megaeth': return `https://www.megaexplorer.xyz/tx/${hash}`
+                      case 'rise': return `https://explorer.testnet.riselabs.xyz/tx/${hash}`
+                      default: return '#'
+                    }
+                  }
+
+                  return (
+                    <tr key={`${tx.hash}-${index}`} className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${tx.network === 'MegaETH' ? 'bg-purple-500' :
+                            tx.network === 'RISE' ? 'bg-blue-500' : 'bg-green-500'
+                            }`} />
+                          <span className="text-gray-900 dark:text-gray-100 font-medium">{tx.network}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <a
+                          href={getExplorerUrl(tx.network, tx.hash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-mono text-xs hover:underline"
+                        >
+                          {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-gray-900 dark:text-gray-100">
+                        <span className={`px-2 py-1 rounded-full text-xs ${tx.time < 200 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          tx.time < 500 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                          {tx.time}ms
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Scroll indicator for mobile */}
+          <div className="flex justify-center mt-2 md:hidden">
+            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <span>←</span>
+              <span>Scroll to see all columns</span>
+              <span>→</span>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+
+    </div >
   )
 }
