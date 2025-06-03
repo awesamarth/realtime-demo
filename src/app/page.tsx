@@ -14,6 +14,7 @@ interface PreSignedPool {
   currentIndex: number
   baseNonce: number
   isRefilling: boolean
+  hasTriggeredRefill: boolean
 }
 
 export default function TestRealtimeEndpoints() {
@@ -27,7 +28,12 @@ export default function TestRealtimeEndpoints() {
   // Cache clients to avoid recreation
   const clientCache = useRef<Record<string, any>>({})
 
-  const foundryAccount = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80')
+
+
+  // ⚠️⚠️ WARNING: This is Foundry's well-known test private key used for demonstration only.
+  // NEVER use your real private key in client-side code or commit it to version control!
+  // This key is publicly known and should ONLY be used for testing purposes.
+  const foundryAccount = privateKeyToAccount(process.env.NEXT_PUBLIC_FOUNDRY_DEFAULT_PRIVATE_KEY as `0x${string}`)
 
   const CONTRACT_ADDRESSES = {
     megaeth: "0x0D0ba0Ea8d031d093eA36c1A1176B066Fd08fadB",
@@ -76,8 +82,7 @@ export default function TestRealtimeEndpoints() {
     return finalClient
   }
 
-  // Fixed refill function
-  const refillPool = async (networkId: string) => {
+  const extendPool = async (networkId: string) => {
     try {
       setPreSignedPool(prev => {
         if (!prev || prev.isRefilling) return prev
@@ -87,7 +92,7 @@ export default function TestRealtimeEndpoints() {
       const client = getNetworkClient(networkId)
       if (!client) return
 
-      console.log(`🔄 Refilling pool for ${networkId}...`)
+      console.log(`Extending pool for ${networkId}...`)
 
       const currentPool = preSignedPool!
       const nextNonce = currentPool.baseNonce + currentPool.transactions.length
@@ -101,8 +106,8 @@ export default function TestRealtimeEndpoints() {
 
         switch (networkId) {
           case 'megaeth':
-            gasPrice = networkGasPrice / 2n
-            gasLimit = 50000n
+            gasPrice = networkGasPrice
+            gasLimit = 100000n
             break
           case 'rise':
             gasPrice = networkGasPrice / 10n
@@ -117,7 +122,6 @@ export default function TestRealtimeEndpoints() {
             gasLimit = 50000n
         }
       } catch (gasError) {
-        // Same fallback logic
         switch (networkId) {
           case 'megaeth':
             gasPrice = 1000000000n
@@ -137,8 +141,8 @@ export default function TestRealtimeEndpoints() {
         }
       }
 
-      // Pre-sign 5 more transactions
-      const signingPromises = Array.from({ length: 5 }, async (_, i) => {
+      // Pre-sign 10 more transactions
+      const signingPromises = Array.from({ length: 10 }, async (_, i) => {
         return await client.signTransaction({
           account: foundryAccount,
           to: CONTRACT_ADDRESSES[networkId as keyof typeof CONTRACT_ADDRESSES] as `0x${string}`,
@@ -154,19 +158,21 @@ export default function TestRealtimeEndpoints() {
 
       const newTransactions = await Promise.all(signingPromises)
 
+      // EXTEND the pool (append new transactions)
       setPreSignedPool(prev => {
         if (!prev) return null
         return {
           ...prev,
           transactions: [...prev.transactions, ...newTransactions],
-          isRefilling: false
+          isRefilling: false,
+          hasTriggeredRefill: false  // Reset flag for next refill
         }
       })
 
-      console.log(`✅ Added 5 more transactions. Total: ${currentPool.transactions.length + 5}`)
+      console.log(`✅ Extended pool with 10 more transactions. Total: ${currentPool.transactions.length + 10}`)
 
     } catch (error) {
-      console.error('❌ Failed to refill pool:', error)
+      console.error('❌ Failed to extend pool:', error)
       setPreSignedPool(prev => prev ? { ...prev, isRefilling: false } : null)
     }
   }
@@ -185,8 +191,11 @@ export default function TestRealtimeEndpoints() {
       console.log(`🚀 Initializing ${selectedNetwork.name} with pre-signed transactions...`)
 
       const nonce = await client.getTransactionCount({
-        address: foundryAccount.address
+        address: foundryAccount.address,
+
       })
+
+
 
       // Get actual gas price from network and apply smart adjustments
       let gasPrice: bigint
@@ -198,26 +207,23 @@ export default function TestRealtimeEndpoints() {
         // Apply conservative multipliers for testnets
         switch (networkId) {
           case 'megaeth':
-            gasPrice = networkGasPrice / 2n // Use half the network gas price
-            gasLimit = 50000n
-            console.log(`🔥 MegaETH - Network: ${networkGasPrice}, Using: ${gasPrice}`)
+            // Just hardcode exactly like the working test
+            gasPrice = networkGasPrice  // 20 gwei
+            gasLimit = 100000n
             break
           case 'rise':
-            gasPrice = networkGasPrice / 10n // Use 1/10th for RISE testnet
+            gasPrice = networkGasPrice / 10n 
             gasLimit = 50000n
-            console.log(`⚡ RISE - Network: ${networkGasPrice}, Using: ${gasPrice}`)
             break
           case 'abstract':
             gasPrice = networkGasPrice
             gasLimit = 200000n
-            console.log(`🔮 Abstract - Network: ${networkGasPrice}, Using: ${gasPrice}`)
             break
           default:
             gasPrice = networkGasPrice / 2n
             gasLimit = 50000n
         }
 
-        console.log(`📊 Gas config - Price: ${gasPrice}, Limit: ${gasLimit}`)
 
       } catch (gasError) {
         console.warn('⚠️ Failed to get gas price, using fallback:', gasError)
@@ -239,11 +245,11 @@ export default function TestRealtimeEndpoints() {
             gasPrice = 1000000000n
             gasLimit = 50000n
         }
-        console.log(`🔄 Using fallback gas - Price: ${gasPrice}, Limit: ${gasLimit}`)
+        console.log(`Using fallback gas - Price: ${gasPrice}, Limit: ${gasLimit}`)
       }
 
       // Pre-sign 10 transactions initially
-      console.log(`🔐 Pre-signing 10 transactions...`)
+      console.log(`Pre-signing 10 transactions...`)
       const signingPromises = Array.from({ length: 10 }, async (_, i) => {
         return await client.signTransaction({
           account: foundryAccount,
@@ -264,7 +270,8 @@ export default function TestRealtimeEndpoints() {
         transactions,
         currentIndex: 0,
         baseNonce: nonce,
-        isRefilling: false
+        isRefilling: false,
+        hasTriggeredRefill: false
       })
 
       // Calculate total cost for user info
@@ -272,12 +279,10 @@ export default function TestRealtimeEndpoints() {
       const totalCostFor10Tx = totalCostPerTx * 10n
       const costInEth = Number(totalCostFor10Tx) / 1e18
 
-      console.log(`✅ Pre-signed 10 transactions for ${selectedNetwork.name}`)
-      console.log(`💰 Cost per tx: ${Number(totalCostPerTx) / 1e18} ETH`)
-      console.log(`💰 Total cost for 10 tx: ${costInEth} ETH`)
+      console.log(`Pre-signed 10 transactions for ${selectedNetwork.name}`)
 
     } catch (err: any) {
-      console.error('❌ Error initializing network:', err)
+      console.error('Error initializing network:', err)
       setError(`Failed to initialize ${selectedNetwork.name}: ${err.message}`)
     } finally {
       setIsInitializing(false)
@@ -301,14 +306,7 @@ export default function TestRealtimeEndpoints() {
 
       const signedTx = preSignedPool.transactions[preSignedPool.currentIndex]
 
-      // ADD THIS DEBUG LOGGING 🔍
-      console.log(`🔍 Using transaction index: ${preSignedPool.currentIndex}`)
-      console.log(`🔍 Total transactions in pool: ${preSignedPool.transactions.length}`)
-      console.log(`🔍 Base nonce: ${preSignedPool.baseNonce}`)
-      console.log(`🔍 Expected nonce for this tx: ${preSignedPool.baseNonce + preSignedPool.currentIndex}`)
-      console.log(`🔍 Transaction hash preview: ${signedTx.slice(0, 20)}...`)
 
-      console.log(`⚡ Executing with ${selectedNetwork.endpoint}...`)
 
       const startTime = performance.now()
 
@@ -318,24 +316,26 @@ export default function TestRealtimeEndpoints() {
         params: [signedTx]
       })
 
+      
       const endTime = performance.now()
+      console.log("result: ", result)
       const timeTaken = Math.round(endTime - startTime)
 
-      console.log(`✅ ${selectedNetwork.name} result:`, result)
-      console.log(`⏱️  Time taken: ${timeTaken}ms`)
 
-      // Update pool index and check for refill AFTER state update
       setPreSignedPool(prev => {
         if (!prev) return null
 
         const newCurrentIndex = prev.currentIndex + 1
-        const availableAfterThis = prev.transactions.length - newCurrentIndex
 
-        // Trigger refill when we have 3 or fewer transactions left
-        if (availableAfterThis <= 3 && !prev.isRefilling) {
-          console.log(`🔔 Triggering refill at ${availableAfterThis} transactions remaining`)
-          // Use setTimeout to avoid blocking the current state update
-          setTimeout(() => refillPool(selectedNetwork.id), 0)
+        // Refill every 5 transactions (50% of initial 10), but only once per batch
+        if (newCurrentIndex % 5 === 0 && !prev.hasTriggeredRefill) {
+          console.log(`🔔 Triggering refill at ${newCurrentIndex} transactions used`)
+          setTimeout(() => extendPool(selectedNetwork.id), 0)
+          return {
+            ...prev,
+            currentIndex: newCurrentIndex,
+            hasTriggeredRefill: true  // Only set this when we actually trigger refill
+          }
         }
 
         return {
@@ -344,7 +344,7 @@ export default function TestRealtimeEndpoints() {
         }
       })
 
-      setResult(`Success! Hash: ${result}, Time: ${timeTaken}ms`)
+      setResult(`Hash: ${result?.transactionHash}\nTime: ${timeTaken}ms`)
 
     } catch (err: any) {
       console.error('❌ Error executing:', err)
@@ -371,7 +371,7 @@ export default function TestRealtimeEndpoints() {
   const availableTransactions = preSignedPool ? preSignedPool.transactions.length - preSignedPool.currentIndex : 0
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
+    <div className="flex flex-col items-center justify-start min-h-screen pt-28 p-8">
       <h1 className="text-4xl font-bold mb-2 text-black dark:text-white">
         Realtime Blockchain Endpoints
       </h1>
@@ -437,15 +437,41 @@ export default function TestRealtimeEndpoints() {
         </button>
       </div>
 
-      {/* Results */}
       {result && (
         <div className="mb-6 p-4 bg-green-100 dark:bg-green-900 rounded-lg max-w-2xl">
           <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">
             ✅ Transaction Successful
           </h3>
-          <p className="text-green-700 dark:text-green-300">
-            {result}
-          </p>
+          <div className="text-green-700 dark:text-green-300 space-y-2">
+            {result.split('\n').map((line, index) => {
+              if (line.startsWith('Hash:')) {
+                const hash = line.replace('Hash: ', '')
+                const getExplorerUrl = (networkId: string, hash: string) => {
+                  switch (networkId) {
+                    case 'abstract': return `https://explorer.testnet.abs.xyz/tx/${hash}`
+                    case 'megaeth': return `https://www.megaexplorer.xyz/tx/${hash}`
+                    case 'rise': return `https://explorer.testnet.riselabs.xyz/tx/${hash}`
+                    default: return '#'
+                  }
+                }
+
+                return (
+                  <div key={index}>
+                    <span>Hash: </span>
+                    <a
+                      href={getExplorerUrl(selectedNetwork.id, hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300 font-mono break-all"
+                    >
+                      {hash}
+                    </a>
+                  </div>
+                )
+              }
+              return <p key={index}>{line}</p>
+            })}
+          </div>
         </div>
       )}
 

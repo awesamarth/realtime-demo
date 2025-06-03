@@ -13,7 +13,7 @@ export default function TestMegaETH() {
   const [error, setError] = useState<string>('')
 
   // Using Foundry's default account
-  const foundryAccount = privateKeyToAccount('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80')
+  const foundryAccount = privateKeyToAccount(process.env.NEXT_PUBLIC_FOUNDRY_DEFAULT_PRIVATE_KEY as `0x${string}`)
 
   const megaClient = createWalletClient({
     account: foundryAccount,
