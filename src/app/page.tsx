@@ -541,7 +541,7 @@ export default function TestRealtimeEndpoints() {
             </h3>
             <button
               onClick={clearHistory}
-              className="text-sm text-gray-500 hover:text-red-500 transition-colors"
+              className="text-sm hover:cursor-pointer text-gray-500 hover:text-red-500 transition-colors"
             >
               Clear History
             </button>
