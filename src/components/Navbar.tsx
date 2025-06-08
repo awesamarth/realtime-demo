@@ -194,15 +194,36 @@ export default function Navbar({ onRefreshReady }: NavbarProps) {
            const network = NETWORKS.find(n => n.id === networkId)
            const colors = getNetworkColors(network?.color || 'gray')
            
+           const faucetUrls = {
+             megaeth: 'https://testnet.megaeth.com/',
+             rise: 'https://faucet.testnet.riselabs.xyz/',
+             abstract: 'https://docs.abs.xyz/tooling/faucets'
+           }
+           
            return (
-             <div
+             <Link
                key={networkId}
+               href={faucetUrls[networkId as keyof typeof faucetUrls]}
+               target="_blank"
+               rel="noopener noreferrer"
                className={cn(
-                 "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm",
+                 "hover:cursor-pointer flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm transition-all duration-200",
                  isLight
                    ? "bg-gray-50 border-gray-200 text-gray-700"
                    : "bg-gray-800 border-gray-700 text-gray-300"
                )}
+               style={{
+                 '--hover-bg': colors.bg,
+                 '--hover-border': colors.border
+               } as React.CSSProperties}
+               onMouseEnter={(e) => {
+                 e.currentTarget.style.backgroundColor = colors.hoverBg
+                 e.currentTarget.style.borderColor = colors.border
+               }}
+               onMouseLeave={(e) => {
+                 e.currentTarget.style.backgroundColor = isLight ? '#f9fafb' : '#1f2937'
+                 e.currentTarget.style.borderColor = isLight ? '#e5e7eb' : '#374151'
+               }}
              >
                <div 
                  className="w-2 h-2 rounded-full"
@@ -216,7 +237,7 @@ export default function Navbar({ onRefreshReady }: NavbarProps) {
                <span className="font-mono">
                  {isLoadingBalances ? '...' : balances[networkId as keyof NetworkBalances]}
                </span>
-             </div>
+             </Link>
            )
          })}
        </div>
