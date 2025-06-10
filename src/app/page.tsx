@@ -578,8 +578,8 @@ export default function TestRealtimeEndpoints() {
                     <tr key={`${tx.hash}-${index}`} className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                       <td className="px-4 py-3 text-sm">
                         <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${tx.network === 'MegaETH' ? 'bg-purple-500' :
-                            tx.network === 'RISE' ? 'bg-blue-500' : 'bg-green-500'
+                          <div className={`w-2 h-2 rounded-full ${tx.network === 'MegaETH' ? 'bg-amber-600' :
+                            tx.network === 'RISE' ? 'bg-purple-500' : 'bg-green-500'
                             }`} />
                           <span className="text-gray-900 dark:text-gray-100 font-medium">{tx.network}</span>
                         </div>
