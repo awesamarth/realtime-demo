@@ -35,7 +35,7 @@ export default function TestRealtimeEndpoints() {
 
 
 
-  // ⚠️⚠️ WARNING: This is Foundry's well-known test private key used for demonstration only.
+  // ⚠️⚠️ WARNING: This is a burner account's private key used for demonstration only.
   // NEVER use your real private key in client-side code or commit it to version control!
   // This key is publicly known and should ONLY be used for testing purposes.
   const foundryAccount = privateKeyToAccount(process.env.NEXT_PUBLIC_FOUNDRY_DEFAULT_PRIVATE_KEY as `0x${string}`)
