@@ -7,7 +7,7 @@ import { Sun, Moon, Copy, Check } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { createWalletClient, http, publicActions } from 'viem'
-import { megaethTestnet, abstractTestnet, riseTestnet } from 'viem/chains'
+import { megaethTestnet, riseTestnet } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import { eip712WalletActions } from 'viem/zksync'
 import { NETWORKS } from '@/components/SimpleNetworkSelector'
@@ -19,7 +19,6 @@ interface NavbarProps {
 interface NetworkBalances {
  megaeth: string
  rise: string
- abstract: string
 }
 
 export default function Navbar({ onRefreshReady }: NavbarProps) {
@@ -28,7 +27,6 @@ export default function Navbar({ onRefreshReady }: NavbarProps) {
  const [balances, setBalances] = useState<NetworkBalances>({
    megaeth: '0',
    rise: '0',
-   abstract: '0'
  })
  const [copied, setCopied] = useState(false)
  const [isLoadingBalances, setIsLoadingBalances] = useState(false)
@@ -45,11 +43,6 @@ export default function Navbar({ onRefreshReady }: NavbarProps) {
      chain: riseTestnet,
      rpc: 'https://testnet.riselabs.xyz/',
      color: 'text-blue-500'
-   },
-   abstract: {
-     chain: abstractTestnet,
-     rpc: 'https://api.testnet.abs.xyz',
-     color: 'text-green-500'
    }
  }
 
@@ -117,7 +110,7 @@ export default function Navbar({ onRefreshReady }: NavbarProps) {
      transport: http(config.rpc),
    }).extend(publicActions)
 
-   return networkId === 'abstract' ? client.extend(eip712WalletActions()) : client
+   return client
  }
 
  const fetchBalances = async () => {
@@ -197,7 +190,6 @@ export default function Navbar({ onRefreshReady }: NavbarProps) {
            const faucetUrls = {
              megaeth: 'https://testnet.megaeth.com/',
              rise: 'https://faucet.testnet.riselabs.xyz/',
-             abstract: 'https://docs.abs.xyz/tooling/faucets'
            }
            
            return (
@@ -230,9 +222,7 @@ export default function Navbar({ onRefreshReady }: NavbarProps) {
                  style={{ backgroundColor: colors.dot }}
                />
                <span className="font-medium">
-                 {networkId === 'megaeth' ? 'MegaETH' :
-                   networkId === 'rise' ? 'RISE' :
-                     'Abstract'}:
+                 {networkId === 'megaeth' ? 'MegaETH' : "RISE"}
                </span>
                <span className="font-mono">
                  {isLoadingBalances ? '...' : balances[networkId as keyof NetworkBalances]}

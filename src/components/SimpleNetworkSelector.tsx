@@ -35,13 +35,6 @@ export const NETWORKS: Network[] = [
     chainId: 11155931,
     endpoint: 'eth_sendRawTransactionSync'
   },
-  {
-    id: 'abstract',
-    name: 'Abstract',
-    color: 'green',
-    chainId: 11124,
-    endpoint: 'zks_sendRawTransactionWithDetailedOutput'
-  }
 ]
 
 interface SimpleNetworkSelectorProps {

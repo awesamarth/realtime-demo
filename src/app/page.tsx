@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createWalletClient, http, publicActions, Hex } from 'viem'
-import { megaethTestnet, abstractTestnet, riseTestnet } from 'viem/chains'
+import { megaethTestnet, riseTestnet } from 'viem/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import { SimpleNetworkSelector, NETWORKS, Network } from '@/components/SimpleNetworkSelector'
 import { eip712WalletActions } from 'viem/zksync'
@@ -41,16 +41,14 @@ export default function TestRealtimeEndpoints() {
   const foundryAccount = privateKeyToAccount(process.env.NEXT_PUBLIC_FOUNDRY_DEFAULT_PRIVATE_KEY as `0x${string}`)
 
   const CONTRACT_ADDRESSES = {
-    megaeth: "0x0D0ba0Ea8d031d093eA36c1A1176B066Fd08fadB",
-    rise: "0x06dA3169CfEA164E8308b5977D89E296e75FB62D",
-    abstract: "0x67106EaCAf99c93DB14921b9577098eB24369592"
+    megaeth: "0xfc6825B93644a91539be39a79FC52430E0629845",
+    rise: "0xD7BbD61866569D956f74d426258Fc81e72b6499A",
   }
 
   const getChainConfig = (networkId: string) => {
     switch (networkId) {
       case 'megaeth': return megaethTestnet
       case 'rise': return riseTestnet
-      case 'abstract': return abstractTestnet
       default: return megaethTestnet
     }
   }
@@ -59,7 +57,6 @@ export default function TestRealtimeEndpoints() {
     switch (networkId) {
       case 'megaeth': return 'https://carrot.megaeth.com/rpc'
       case 'rise': return 'https://testnet.riselabs.xyz/'
-      case 'abstract': return 'https://api.testnet.abs.xyz'
       default: return 'https://carrot.megaeth.com/rpc'
     }
   }
@@ -79,12 +76,9 @@ export default function TestRealtimeEndpoints() {
       transport: http(getRpcUrl(networkId)),
     }).extend(publicActions)
 
-    // Extend with zkSync actions for Abstract
-    const finalClient = networkId === 'abstract' ? client.extend(eip712WalletActions()) : client
-
     // Cache the client
-    clientCache.current[networkId] = finalClient
-    return finalClient
+    clientCache.current[networkId] = client
+    return client
   }
 
   const extendPool = async (networkId: string) => {
@@ -118,10 +112,6 @@ export default function TestRealtimeEndpoints() {
             gasPrice = networkGasPrice / 10n
             gasLimit = 50000n
             break
-          case 'abstract':
-            gasPrice = networkGasPrice
-            gasLimit = 200000n
-            break
           default:
             gasPrice = networkGasPrice / 2n
             gasLimit = 50000n
@@ -135,10 +125,6 @@ export default function TestRealtimeEndpoints() {
           case 'rise':
             gasPrice = 100000000n
             gasLimit = 50000n
-            break
-          case 'abstract':
-            gasPrice = 50000000000n
-            gasLimit = 200000n
             break
           default:
             gasPrice = 1000000000n
@@ -219,10 +205,6 @@ export default function TestRealtimeEndpoints() {
             gasPrice = networkGasPrice / 10n
             gasLimit = 50000n
             break
-          case 'abstract':
-            gasPrice = networkGasPrice
-            gasLimit = 200000n
-            break
           default:
             gasPrice = networkGasPrice / 2n
             gasLimit = 50000n
@@ -240,10 +222,6 @@ export default function TestRealtimeEndpoints() {
           case 'rise':
             gasPrice = 100000000n // 0.1 gwei
             gasLimit = 50000n
-            break
-          case 'abstract':
-            gasPrice = 50000000000n // 50 gwei
-            gasLimit = 200000n
             break
           default:
             gasPrice = 1000000000n
@@ -462,7 +440,6 @@ export default function TestRealtimeEndpoints() {
                 const hash = line.replace('Hash: ', '')
                 const getExplorerUrl = (networkId: string, hash: string) => {
                   switch (networkId) {
-                    case 'abstract': return `https://explorer.testnet.abs.xyz/tx/${hash}`
                     case 'megaeth': return `https://www.megaexplorer.xyz/tx/${hash}`
                     case 'rise': return `https://explorer.testnet.riselabs.xyz/tx/${hash}`
                     default: return '#'
@@ -567,7 +544,6 @@ export default function TestRealtimeEndpoints() {
                   const getExplorerUrl = (networkName: string, hash: string) => {
                     const networkId = networkName.toLowerCase().replace(' ', '')
                     switch (networkId) {
-                      case 'abstract': return `https://explorer.testnet.abs.xyz/tx/${hash}`
                       case 'megaeth': return `https://www.megaexplorer.xyz/tx/${hash}`
                       case 'rise': return `https://explorer.testnet.riselabs.xyz/tx/${hash}`
                       default: return '#'
